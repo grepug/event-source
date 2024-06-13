@@ -146,8 +146,6 @@ open class EventSource: NSObject, EventSourceProtocol, URLSessionDataDelegate {
     }
 
     open func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        print("received data", String(data: data, encoding: .utf8))
-
         if readyState != .open {
             return
         }
