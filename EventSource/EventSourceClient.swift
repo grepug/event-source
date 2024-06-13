@@ -7,6 +7,10 @@
 
 import Foundation
 
+public enum EventSourceClientError: Error {
+    case non200Status(Int)
+}
+
 public class EventSourceClient {
     let request: URLRequest
     let es: EventSource
@@ -19,6 +23,13 @@ public class EventSourceClient {
     public var stream: AsyncThrowingStream<String, any Error> {
         .init { continuation in
             es.onComplete { status, isTrue, error in
+                if let status {
+                    if status > 201 {
+                        continuation.finish(throwing: EventSourceClientError.non200Status(status))
+                        return
+                    }
+                }
+                
                 if let error {
                     continuation.finish(throwing: error)
                 } else {
