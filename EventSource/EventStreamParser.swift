@@ -15,14 +15,14 @@ final class EventStreamParser {
     //  \n = LF (Line Feed) → Used as a new line character in Unix/Mac OS X
     //  \r\n = CR + LF → Used as a new line character in Windows
     private let validNewlineCharacters = ["\r\n", "\n", "\r"]
-    private let dataBuffer: NSMutableData
+    private var dataBuffer: Data
 
     init() {
-        dataBuffer = NSMutableData()
+        dataBuffer = Data()
     }
 
     var currentBuffer: String? {
-        return NSString(data: dataBuffer as Data, encoding: String.Encoding.utf8.rawValue) as String?
+        return String(data: dataBuffer, encoding: .utf8)
     }
 
     func append(data: Data?) -> [Event] {
@@ -39,49 +39,41 @@ final class EventStreamParser {
 
     private func extractEventsFromBuffer() -> [String] {
         var events = [String]()
+        var searchRange = 0..<dataBuffer.count
 
-        var searchRange =  NSRange(location: 0, length: dataBuffer.length)
         while let foundRange = searchFirstEventDelimiter(in: searchRange) {
-            // if we found a delimiter range that means that from the beggining of the buffer
-            // until the beggining of the range where the delimiter was found we have an event.
-            // The beggining of the event is: searchRange.location
-            // The lenght of the event is the position where the foundRange was found.
+            let dataChunk = dataBuffer.subdata(in: searchRange.lowerBound..<foundRange.lowerBound)
 
-            let dataChunk = dataBuffer.subdata(
-                with: NSRange(location: searchRange.location, length: foundRange.location - searchRange.location)
-            )
-
-            if let text = String(bytes: dataChunk, encoding: .utf8) {
+            if let text = String(data: dataChunk, encoding: .utf8) {
                 events.append(text)
             }
 
-            // We move the searchRange start position (location) after the fundRange we just found and
-            searchRange.location = foundRange.location + foundRange.length
-            searchRange.length = dataBuffer.length - searchRange.location
+            searchRange = foundRange.upperBound..<dataBuffer.count
         }
-
-        // We empty the piece of the buffer we just search in.
-        dataBuffer.replaceBytes(in: NSRange(location: 0, length: searchRange.location), withBytes: nil, length: 0)
+        
+        dataBuffer = dataBuffer.subdata(in: searchRange)
 
         return events
     }
 
-    // This methods returns the range of the first delimiter found in the buffer. For example:
-    // If in the buffer we have: `id: event-id-1\ndata:event-data-first\n\n`
-    // This method will return the range for the `\n\n`.
-    private func searchFirstEventDelimiter(in range: NSRange) -> NSRange? {
-        let delimiters = validNewlineCharacters.map { "\($0)\($0)".data(using: String.Encoding.utf8)! }
+    private func searchFirstEventDelimiter(in range: Range<Data.Index>) -> Range<Data.Index>? {
+        let delimiters = validNewlineCharacters.map { "\($0)\($0)".data(using: .utf8)! }
 
         for delimiter in delimiters {
-            let foundRange = dataBuffer.range(
-                of: delimiter, options: NSData.SearchOptions(), in: range
-            )
-
-            if foundRange.location != NSNotFound {
+            if let foundRange = dataBuffer.range(of: delimiter, options: [], in: range) {
                 return foundRange
             }
         }
 
         return nil
+    }
+}
+
+extension Data {
+    func range(of data: Data, options: Data.SearchOptions = [], in range: Range<Data.Index>) -> Range<Data.Index>? {
+        let searchRange = range.clamped(to: 0..<self.count)
+        guard let startIndex = self[searchRange].firstIndex(of: data[0]) else { return nil }
+        let possibleRange = startIndex..<(startIndex + data.count)
+        return possibleRange.clamped(to: searchRange)
     }
 }
