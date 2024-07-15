@@ -7,6 +7,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 enum Event {
     case event(id: String?, event: String?, data: String?, time: String?)
