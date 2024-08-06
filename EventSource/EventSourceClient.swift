@@ -11,7 +11,7 @@ import FoundationNetworking
 #endif
 
 public enum EventSourceClientError: Error {
-    case non200Status(Int)
+    case non200Status(Int), unauthorized
 }
 
 public class EventSourceClient {
@@ -27,6 +27,11 @@ public class EventSourceClient {
         .init { continuation in
             es.onComplete { status, isTrue, error in
                 if let status {
+                    if status == 401 {
+                        continuation.finish(throwing: EventSourceClientError.unauthorized)
+                        return
+                    }
+                    
                     if status > 201 {
                         continuation.finish(throwing: EventSourceClientError.non200Status(status))
                         return
