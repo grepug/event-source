@@ -26,6 +26,11 @@ public class EventSourceClient {
     public var stream: AsyncThrowingStream<String, any Error> {
         .init { continuation in
             es.onComplete { status, isTrue, error in
+                if let error {
+                    continuation.finish(throwing: error)
+                    return
+                }
+                
                 if let status {
                     if status == 401 {
                         continuation.finish(throwing: EventSourceClientError.unauthorized)
@@ -38,11 +43,7 @@ public class EventSourceClient {
                     }
                 }
                 
-                if let error {
-                    continuation.finish(throwing: error)
-                } else {
-                    continuation.finish()
-                }
+                continuation.finish()
             }
             
             es.onOpen {}
