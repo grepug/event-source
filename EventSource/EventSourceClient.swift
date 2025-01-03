@@ -32,6 +32,11 @@ public class EventSourceClient {
                 }
                 
                 if let status {
+                    if String(status).first == "2" {
+                        continuation.finish()
+                        return
+                    }
+                    
                     if status == 401 {
                         continuation.finish(throwing: EventSourceClientError.unauthorized)
                         return
